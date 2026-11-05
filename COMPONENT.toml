@@ -1,0 +1,16 @@
+[component]
+name = "SigmaOS-linux-arch"
+tier = 3
+stability = "stable"
+language = "rust"
+description = "Arch Linux compatibility layer, pacman bridging, and rolling-release integration"
+upstream = []
+
+[contract]
+provides = ['arch-pacman-bridge', 'alpm-manifest-sync']
+depends_on = []
+
+[maturity]
+status = "Production"
+test_evidence = "Unit tested (AAA pattern)"
+next_milestone = "Ecosystem integration"
