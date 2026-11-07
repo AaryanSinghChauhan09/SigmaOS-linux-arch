@@ -18,8 +18,8 @@ pub mod namcap;
 
 // Re-exports
 pub use pacman::{
-    AlpmDependency, AlpmTransaction, AlpmVersion, ArchPackageDesc, DepOperator,
-    PacmanConfig, PacmanRepo, TransactionAction,
+    AlpmDependency, AlpmTransaction, AlpmVersion, ArchMirrorSync, ArchPackageDesc, DepOperator,
+    PacmanConfig, PacmanDb, PacmanRepo, TransactionAction,
 };
 pub use mkinitcpio::{InitramfsHook, MkinitcpioConfig, MkinitcpioHookSolver};
 pub use archinstall::{
@@ -403,5 +403,66 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
         assert!(tags.iter().any(|t| t.tag_name == "missing-license"));
         assert!(tags.iter().any(|t| t.tag_name == "missing-url"));
         assert!(tags.iter().any(|t| t.tag_name == "fhs-local-violation"));
+    }
+
+    #[test]
+    fn test_pacmandb_add_search_remove() {
+        // Arrange
+        let mut db = PacmanDb::new("/var/lib/pacman/local");
+        let pkg = ArchPackageDesc {
+            name: "ripgrep".to_string(),
+            version: "14.1.0-1".to_string(),
+            desc: "Ultra-fast line-oriented search tool".to_string(),
+            ..Default::default()
+        };
+
+        // Act
+        db.add_package(pkg.clone());
+
+        // Assert
+        assert_eq!(db.count(), 1);
+        assert!(db.contains("ripgrep"));
+        let search_results = db.search("search");
+        assert_eq!(search_results.len(), 1);
+        assert_eq!(search_results[0].name, "ripgrep");
+
+        // Act: remove
+        let removed = db.remove_package("ripgrep");
+        assert!(removed.is_some());
+        assert_eq!(db.count(), 0);
+    }
+
+    #[test]
+    fn test_arch_mirror_sync_query() {
+        // Arrange
+        let mut sync = ArchMirrorSync::new(vec!["https://geo.mirror.pkg.archlinux.org".to_string()]);
+        let core_pkgs = vec![
+            ArchPackageDesc {
+                name: "linux".to_string(),
+                version: "6.8.9.arch1-1".to_string(),
+                desc: "The Linux kernel and modules".to_string(),
+                ..Default::default()
+            },
+        ];
+        let extra_pkgs = vec![
+            ArchPackageDesc {
+                name: "firefox".to_string(),
+                version: "125.0.3-1".to_string(),
+                desc: "Fast, Private & Safe Web Browser".to_string(),
+                ..Default::default()
+            },
+        ];
+
+        // Act
+        sync.register_repo_packages("core", core_pkgs);
+        sync.register_repo_packages("extra", extra_pkgs);
+
+        // Assert
+        let (repo, pkg) = sync.find_package("firefox").unwrap();
+        assert_eq!(repo, "extra");
+        assert_eq!(pkg.version, "125.0.3-1");
+
+        let (repo_kernel, _) = sync.find_package("linux").unwrap();
+        assert_eq!(repo_kernel, "core");
     }
 }

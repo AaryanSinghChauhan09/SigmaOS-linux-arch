@@ -483,3 +483,108 @@ impl AlpmTransaction {
         order.push(pkg.name.clone());
     }
 }
+
+// =========================================================================
+// 5. LOCAL PACMAN DATABASE & MIRROR SYNC ENGINE
+// =========================================================================
+
+/// Local package database manager (`/var/lib/pacman/local` parity)
+#[derive(Debug, Clone, Default)]
+pub struct PacmanDb {
+    pub db_path: String,
+    packages: BTreeMap<String, ArchPackageDesc>,
+}
+
+impl PacmanDb {
+    pub fn new(db_path: impl Into<String>) -> Self {
+        Self {
+            db_path: db_path.into(),
+            packages: BTreeMap::new(),
+        }
+    }
+
+    pub fn add_package(&mut self, pkg: ArchPackageDesc) {
+        self.packages.insert(pkg.name.clone(), pkg);
+    }
+
+    pub fn remove_package(&mut self, name: &str) -> Option<ArchPackageDesc> {
+        self.packages.remove(name)
+    }
+
+    pub fn get(&self, name: &str) -> Option<&ArchPackageDesc> {
+        self.packages.get(name)
+    }
+
+    pub fn contains(&self, name: &str) -> bool {
+        self.packages.contains_key(name)
+    }
+
+    pub fn list_all(&self) -> Vec<&ArchPackageDesc> {
+        self.packages.values().collect()
+    }
+
+    pub fn count(&self) -> usize {
+        self.packages.len()
+    }
+
+    pub fn search(&self, query: &str) -> Vec<&ArchPackageDesc> {
+        let q = query.to_lowercase();
+        self.packages
+            .values()
+            .filter(|p| p.name.to_lowercase().contains(&q) || p.desc.to_lowercase().contains(&q))
+            .collect()
+    }
+}
+
+/// Remote mirror synchronization and sync DB manager (`/var/lib/pacman/sync` parity)
+#[derive(Debug, Clone, Default)]
+pub struct ArchMirrorSync {
+    pub mirrors: Vec<String>,
+    pub sync_dbs: BTreeMap<String, BTreeMap<String, ArchPackageDesc>>, // repo_name -> (pkg_name -> desc)
+}
+
+impl ArchMirrorSync {
+    pub fn new(mirrors: Vec<String>) -> Self {
+        Self {
+            mirrors,
+            sync_dbs: BTreeMap::new(),
+        }
+    }
+
+    pub fn add_mirror(&mut self, url: impl Into<String>) {
+        self.mirrors.push(url.into());
+    }
+
+    pub fn register_repo_packages(&mut self, repo: &str, packages: Vec<ArchPackageDesc>) {
+        let repo_db = self.sync_dbs.entry(repo.to_string()).or_default();
+        for pkg in packages {
+            repo_db.insert(pkg.name.clone(), pkg);
+        }
+    }
+
+    pub fn query_repo(&self, repo: &str, pkg_name: &str) -> Option<&ArchPackageDesc> {
+        self.sync_dbs.get(repo)?.get(pkg_name)
+    }
+
+    pub fn find_package(&self, pkg_name: &str) -> Option<(&str, &ArchPackageDesc)> {
+        for (repo, db) in &self.sync_dbs {
+            if let Some(pkg) = db.get(pkg_name) {
+                return Some((repo.as_str(), pkg));
+            }
+        }
+        None
+    }
+
+    pub fn search_all(&self, query: &str) -> Vec<(&str, &ArchPackageDesc)> {
+        let q = query.to_lowercase();
+        let mut results = Vec::new();
+        for (repo, db) in &self.sync_dbs {
+            for pkg in db.values() {
+                if pkg.name.to_lowercase().contains(&q) || pkg.desc.to_lowercase().contains(&q) {
+                    results.push((repo.as_str(), pkg));
+                }
+            }
+        }
+        results
+    }
+}
