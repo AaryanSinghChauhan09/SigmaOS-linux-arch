@@ -1,8 +1,8 @@
 //! pacman-contrib utilities suite (paccache, checkupdates, rankmirrors, pactree)
 //! Direct inspiration: https://github.com/archlinux/pacman-contrib
 
-use std::collections::{BTreeMap, HashSet};
 use crate::pacman::{AlpmVersion, ArchPackageDesc};
+use std::collections::{BTreeMap, HashSet};
 
 // =========================================================================
 // 1. PACCACHE (Package Cache Cleaner)

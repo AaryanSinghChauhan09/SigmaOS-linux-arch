@@ -62,8 +62,7 @@ impl MkinitcpioConfig {
                 let key = trimmed[..pos].trim();
                 let val = trimmed[pos + 1..].trim();
                 // strip quotes or parentheses
-                let clean_val = val
-                    .trim_matches(|c| c == '"' || c == '\'' || c == '(' || c == ')');
+                let clean_val = val.trim_matches(|c| c == '"' || c == '\'' || c == '(' || c == ')');
                 let items: Vec<String> = clean_val
                     .split_whitespace()
                     .map(|s| s.to_string())
@@ -178,7 +177,9 @@ impl MkinitcpioHookSolver {
 
             // Check if all dependencies are satisfied by prior hooks
             for dep in &hook.dependencies {
-                if !provided.contains(dep) && !hooks.iter().take_while(|h| *h != name).any(|h| h == dep) {
+                if !provided.contains(dep)
+                    && !hooks.iter().take_while(|h| *h != name).any(|h| h == dep)
+                {
                     return Err(format!(
                         "hook '{}' missing required prior hook '{}'",
                         name, dep
@@ -217,7 +218,10 @@ impl MkinitcpioHookSolver {
         script.push_str("mount -t sysfs sysfs /sys\n\n");
 
         for hook in ordered_hooks {
-            script.push_str(&format!("echo ':: Running early initramfs hook [{}]...'\n", hook));
+            script.push_str(&format!(
+                "echo ':: Running early initramfs hook [{}]...'\n",
+                hook
+            ));
             script.push_str(&format!("run_hook_{}\n", hook));
         }
 

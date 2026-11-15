@@ -1,8 +1,8 @@
 //! arch-audit Arch Security Advisory (ASA) CVE vulnerability scanner engine
 //! Direct inspiration: https://github.com/archlinux/arch-audit
 
-use std::collections::BTreeMap;
 use crate::pacman::AlpmVersion;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
@@ -22,6 +22,7 @@ pub struct SecurityAdvisory {
     pub fixed_version: Option<String>,
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct ArchAuditScanner {
     pub advisories: Vec<SecurityAdvisory>,
 }

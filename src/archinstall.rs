@@ -111,7 +111,9 @@ impl ArchinstallProfile {
         }
 
         match self.network {
-            NetworkManagerType::NetworkManager => pkgs.extend_from_slice(&["networkmanager", "iwd"]),
+            NetworkManagerType::NetworkManager => {
+                pkgs.extend_from_slice(&["networkmanager", "iwd"])
+            }
             NetworkManagerType::SystemdNetworkd => pkgs.push("systemd"),
             NetworkManagerType::Manual => {}
         }
@@ -126,10 +128,14 @@ impl ArchinstallProfile {
 
         match self.desktop {
             DesktopEnvironment::SovereignZenith => pkgs.push("sigmaos-zenith-desktop"),
-            DesktopEnvironment::Cinnamon => pkgs.extend_from_slice(&["cinnamon", "nemo", "slick-greeter"]),
+            DesktopEnvironment::Cinnamon => {
+                pkgs.extend_from_slice(&["cinnamon", "nemo", "slick-greeter"])
+            }
             DesktopEnvironment::Gnome => pkgs.extend_from_slice(&["gnome", "gdm"]),
             DesktopEnvironment::KdePlasma => pkgs.extend_from_slice(&["plasma-meta", "sddm"]),
-            DesktopEnvironment::Hyprland => pkgs.extend_from_slice(&["hyprland", "waybar", "kitty"]),
+            DesktopEnvironment::Hyprland => {
+                pkgs.extend_from_slice(&["hyprland", "waybar", "kitty"])
+            }
             DesktopEnvironment::None => {}
         }
 

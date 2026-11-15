@@ -9,29 +9,28 @@
 //! - `audit`: Arch Security Advisory (ASA) CVE vulnerability scanner
 //! - `namcap`: Package metadata and FHS layout quality linter
 
-pub mod pacman;
-pub mod mkinitcpio;
 pub mod archinstall;
-pub mod contrib;
 pub mod audit;
+pub mod contrib;
+pub mod mkinitcpio;
 pub mod namcap;
+pub mod pacman;
 
 // Re-exports
+pub use archinstall::{
+    ArchinstallProfile, DesktopEnvironment, FilesystemKind, NetworkManagerType, ProfileKind,
+    SubvolumeConfig,
+};
+pub use audit::{ArchAuditScanner, SecurityAdvisory, Severity, VulnerabilityReport};
+pub use contrib::{
+    CachedPackageFile, CheckUpdates, MirrorEntry, PacCache, PacTree, PendingUpdate, RankMirrors,
+};
+pub use mkinitcpio::{InitramfsHook, MkinitcpioConfig, MkinitcpioHookSolver};
+pub use namcap::{LintTag, NamcapLinter, TagLevel};
 pub use pacman::{
     AlpmDependency, AlpmTransaction, AlpmVersion, ArchMirrorSync, ArchPackageDesc, DepOperator,
     PacmanConfig, PacmanDb, PacmanRepo, TransactionAction,
 };
-pub use mkinitcpio::{InitramfsHook, MkinitcpioConfig, MkinitcpioHookSolver};
-pub use archinstall::{
-    ArchinstallProfile, DesktopEnvironment, FilesystemKind, NetworkManagerType,
-    ProfileKind, SubvolumeConfig,
-};
-pub use contrib::{
-    CachedPackageFile, CheckUpdates, MirrorEntry, PacCache, PacTree, PendingUpdate,
-    RankMirrors,
-};
-pub use audit::{ArchAuditScanner, SecurityAdvisory, Severity, VulnerabilityReport};
-pub use namcap::{LintTag, NamcapLinter, TagLevel};
 
 // Legacy compatibility shim for PacmanBridge
 #[derive(Debug, Clone, PartialEq)]
@@ -48,7 +47,9 @@ pub struct PacmanBridge {
 
 impl PacmanBridge {
     pub fn new(db_path: impl Into<String>) -> Self {
-        Self { db_path: db_path.into() }
+        Self {
+            db_path: db_path.into(),
+        }
     }
 
     pub fn parse_desc(&self, raw: &str) -> Option<ArchPackageMeta> {
@@ -164,7 +165,10 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
         let curl = ArchPackageDesc {
             name: "curl".to_string(),
             version: "8.6.0-1".to_string(),
-            depends: vec![AlpmDependency::parse("openssl"), AlpmDependency::parse("glibc")],
+            depends: vec![
+                AlpmDependency::parse("openssl"),
+                AlpmDependency::parse("glibc"),
+            ],
             ..Default::default()
         };
 
@@ -227,7 +231,9 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
         // Act & Assert
         let res = solver.validate_and_order(&broken_hooks);
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("missing required prior hook 'udev'"));
+        assert!(res
+            .unwrap_err()
+            .contains("missing required prior hook 'udev'"));
     }
 
     #[test]
@@ -293,7 +299,7 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
 
         let mut sync_db = BTreeMap::new();
         sync_db.insert("systemd".to_string(), "255.4-2".to_string()); // upgrade available
-        sync_db.insert("bash".to_string(), "5.2.026-1".to_string());    // up to date
+        sync_db.insert("bash".to_string(), "5.2.026-1".to_string()); // up to date
 
         // Act
         let pending = CheckUpdates::find_updates(&installed, &sync_db);
@@ -308,10 +314,26 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
     fn test_rankmirrors_latency_sort() {
         // Arrange
         let mirrors = vec![
-            MirrorEntry { url: "https://slow.mirror/arch".to_string(), latency_ms: 350, reachable: true },
-            MirrorEntry { url: "https://fast.mirror/arch".to_string(), latency_ms: 22, reachable: true },
-            MirrorEntry { url: "https://dead.mirror/arch".to_string(), latency_ms: 0, reachable: false },
-            MirrorEntry { url: "https://medium.mirror/arch".to_string(), latency_ms: 85, reachable: true },
+            MirrorEntry {
+                url: "https://slow.mirror/arch".to_string(),
+                latency_ms: 350,
+                reachable: true,
+            },
+            MirrorEntry {
+                url: "https://fast.mirror/arch".to_string(),
+                latency_ms: 22,
+                reachable: true,
+            },
+            MirrorEntry {
+                url: "https://dead.mirror/arch".to_string(),
+                latency_ms: 0,
+                reachable: false,
+            },
+            MirrorEntry {
+                url: "https://medium.mirror/arch".to_string(),
+                latency_ms: 85,
+                reachable: true,
+            },
         ];
 
         // Act
@@ -328,21 +350,33 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
     fn test_pactree_forward_traversal() {
         // Arrange
         let mut db = BTreeMap::new();
-        db.insert("gtk4".to_string(), ArchPackageDesc {
-            name: "gtk4".to_string(),
-            depends: vec![AlpmDependency::parse("cairo"), AlpmDependency::parse("glib2")],
-            ..Default::default()
-        });
-        db.insert("cairo".to_string(), ArchPackageDesc {
-            name: "cairo".to_string(),
-            depends: vec![AlpmDependency::parse("pixman")],
-            ..Default::default()
-        });
-        db.insert("pixman".to_string(), ArchPackageDesc {
-            name: "pixman".to_string(),
-            depends: Vec::new(),
-            ..Default::default()
-        });
+        db.insert(
+            "gtk4".to_string(),
+            ArchPackageDesc {
+                name: "gtk4".to_string(),
+                depends: vec![
+                    AlpmDependency::parse("cairo"),
+                    AlpmDependency::parse("glib2"),
+                ],
+                ..Default::default()
+            },
+        );
+        db.insert(
+            "cairo".to_string(),
+            ArchPackageDesc {
+                name: "cairo".to_string(),
+                depends: vec![AlpmDependency::parse("pixman")],
+                ..Default::default()
+            },
+        );
+        db.insert(
+            "pixman".to_string(),
+            ArchPackageDesc {
+                name: "pixman".to_string(),
+                depends: Vec::new(),
+                ..Default::default()
+            },
+        );
 
         // Act
         let tree = PacTree::dependency_tree("gtk4", &db);
@@ -381,7 +415,10 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
         assert_eq!(reports_vuln[0].advisory_id, "ASA-202403-1");
         assert_eq!(reports_vuln[0].severity, Severity::Critical);
 
-        assert!(reports_fixed.is_empty(), "fixed package must not be flagged");
+        assert!(
+            reports_fixed.is_empty(),
+            "fixed package must not be flagged"
+        );
     }
 
     #[test]
@@ -390,8 +427,8 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
         let bad_pkg = ArchPackageDesc {
             name: "bad-package".to_string(),
             version: "1.0.0-1".to_string(),
-            license: Vec::new(), // missing license
-            url: "".to_string(), // missing url
+            license: Vec::new(),                            // missing license
+            url: "".to_string(),                            // missing url
             files: vec!["/usr/local/bin/test".to_string()], // FHS violation
             ..Default::default()
         };
@@ -435,23 +472,20 @@ Server = https://geo.mirror.pkg.archlinux.org/extra/os/x86_64
     #[test]
     fn test_arch_mirror_sync_query() {
         // Arrange
-        let mut sync = ArchMirrorSync::new(vec!["https://geo.mirror.pkg.archlinux.org".to_string()]);
-        let core_pkgs = vec![
-            ArchPackageDesc {
-                name: "linux".to_string(),
-                version: "6.8.9.arch1-1".to_string(),
-                desc: "The Linux kernel and modules".to_string(),
-                ..Default::default()
-            },
-        ];
-        let extra_pkgs = vec![
-            ArchPackageDesc {
-                name: "firefox".to_string(),
-                version: "125.0.3-1".to_string(),
-                desc: "Fast, Private & Safe Web Browser".to_string(),
-                ..Default::default()
-            },
-        ];
+        let mut sync =
+            ArchMirrorSync::new(vec!["https://geo.mirror.pkg.archlinux.org".to_string()]);
+        let core_pkgs = vec![ArchPackageDesc {
+            name: "linux".to_string(),
+            version: "6.8.9.arch1-1".to_string(),
+            desc: "The Linux kernel and modules".to_string(),
+            ..Default::default()
+        }];
+        let extra_pkgs = vec![ArchPackageDesc {
+            name: "firefox".to_string(),
+            version: "125.0.3-1".to_string(),
+            desc: "Fast, Private & Safe Web Browser".to_string(),
+            ..Default::default()
+        }];
 
         // Act
         sync.register_repo_packages("core", core_pkgs);

@@ -73,10 +73,14 @@ fn compare_pkgver(a: &str, b: &str) -> std::cmp::Ordering {
     let bb = b.as_bytes();
 
     loop {
-        while ai < ab.len() && (ab[ai] == b'.' || ab[ai] == b'_' || ab[ai] == b'+' || ab[ai] == b'-') {
+        while ai < ab.len()
+            && (ab[ai] == b'.' || ab[ai] == b'_' || ab[ai] == b'+' || ab[ai] == b'-')
+        {
             ai += 1;
         }
-        while bi < bb.len() && (bb[bi] == b'.' || bb[bi] == b'_' || bb[bi] == b'+' || bb[bi] == b'-') {
+        while bi < bb.len()
+            && (bb[bi] == b'.' || bb[bi] == b'_' || bb[bi] == b'+' || bb[bi] == b'-')
+        {
             bi += 1;
         }
 
@@ -109,8 +113,14 @@ fn compare_pkgver(a: &str, b: &str) -> std::cmp::Ordering {
             while bi < bb.len() && bb[bi].is_ascii_digit() {
                 bi += 1;
             }
-            let a_num: u64 = std::str::from_utf8(&ab[a_start..ai]).unwrap_or("0").parse().unwrap_or(0);
-            let b_num: u64 = std::str::from_utf8(&bb[b_start..bi]).unwrap_or("0").parse().unwrap_or(0);
+            let a_num: u64 = std::str::from_utf8(&ab[a_start..ai])
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
+            let b_num: u64 = std::str::from_utf8(&bb[b_start..bi])
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
             let cmp = a_num.cmp(&b_num);
             if cmp != Ordering::Equal {
                 return cmp;
@@ -360,8 +370,12 @@ impl PacmanConfig {
                     "DBPath" => cfg.db_path = val.to_string(),
                     "CacheDir" => cfg.cache_dir = val.to_string(),
                     "HookDir" => cfg.hook_dir = val.to_string(),
-                    "HoldPkg" => cfg.hold_pkgs = val.split_whitespace().map(|s| s.to_string()).collect(),
-                    "IgnorePkg" => cfg.ignore_pkgs = val.split_whitespace().map(|s| s.to_string()).collect(),
+                    "HoldPkg" => {
+                        cfg.hold_pkgs = val.split_whitespace().map(|s| s.to_string()).collect()
+                    }
+                    "IgnorePkg" => {
+                        cfg.ignore_pkgs = val.split_whitespace().map(|s| s.to_string()).collect()
+                    }
                     "Architecture" => cfg.architecture = val.to_string(),
                     "ParallelDownloads" => cfg.parallel_downloads = val.parse().unwrap_or(5),
                     "Color" => cfg.color = true,
@@ -396,6 +410,7 @@ pub enum TransactionAction {
     Remove(String),
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct AlpmTransaction {
     pub actions: Vec<TransactionAction>,
     pub installed_db: BTreeMap<String, ArchPackageDesc>,
@@ -417,7 +432,10 @@ impl AlpmTransaction {
         // Conflict check
         for conflict in &pkg.conflicts {
             if self.installed_db.contains_key(conflict) {
-                return Err(format!("conflict detected: {} conflicts with installed {}", pkg.name, conflict));
+                return Err(format!(
+                    "conflict detected: {} conflicts with installed {}",
+                    pkg.name, conflict
+                ));
             }
         }
 
@@ -450,7 +468,8 @@ impl AlpmTransaction {
                 }
             }
         }
-        self.actions.push(TransactionAction::Remove(pkg_name.to_string()));
+        self.actions
+            .push(TransactionAction::Remove(pkg_name.to_string()));
         Ok(())
     }
 
@@ -460,7 +479,11 @@ impl AlpmTransaction {
         let mut visited = HashSet::new();
 
         for action in &self.actions {
-            if let TransactionAction::Install(pkg) | TransactionAction::Upgrade { new_package: pkg, .. } = action {
+            if let TransactionAction::Install(pkg)
+            | TransactionAction::Upgrade {
+                new_package: pkg, ..
+            } = action
+            {
                 self.visit_deps(pkg, &mut visited, &mut order);
             }
         }
@@ -468,7 +491,12 @@ impl AlpmTransaction {
         order
     }
 
-    fn visit_deps(&self, pkg: &ArchPackageDesc, visited: &mut HashSet<String>, order: &mut Vec<String>) {
+    fn visit_deps(
+        &self,
+        pkg: &ArchPackageDesc,
+        visited: &mut HashSet<String>,
+        order: &mut Vec<String>,
+    ) {
         if visited.contains(&pkg.name) {
             return;
         }

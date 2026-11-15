@@ -17,15 +17,13 @@ use std::env;
 use std::path::Path;
 use std::process::ExitCode;
 
-use sigmaos_linux_arch::pacman::{
-    AlpmDependency, AlpmTransaction, AlpmVersion, ArchPackageDesc,
-};
+use sigmaos_linux_arch::archinstall::ArchinstallProfile;
+use sigmaos_linux_arch::audit::{ArchAuditScanner, SecurityAdvisory, Severity};
 use sigmaos_linux_arch::contrib::{
     CachedPackageFile, CheckUpdates, MirrorEntry, PacCache, PacTree, RankMirrors,
 };
 use sigmaos_linux_arch::mkinitcpio::MkinitcpioHookSolver;
-use sigmaos_linux_arch::archinstall::ArchinstallProfile;
-use sigmaos_linux_arch::audit::{ArchAuditScanner, SecurityAdvisory, Severity};
+use sigmaos_linux_arch::pacman::{AlpmDependency, AlpmTransaction, AlpmVersion, ArchPackageDesc};
 
 fn print_usage() {
     println!("\x1b[1;36mSigmaOS Arch Linux Subsystem & Pacman Engine\x1b[0m");
@@ -44,109 +42,154 @@ fn print_usage() {
     println!("  help                 Show this help message");
 }
 
-fn sample_packages() -> (BTreeMap<String, ArchPackageDesc>, BTreeMap<String, ArchPackageDesc>) {
+fn sample_packages() -> (
+    BTreeMap<String, ArchPackageDesc>,
+    BTreeMap<String, ArchPackageDesc>,
+) {
     let mut local = BTreeMap::new();
     let mut sync = BTreeMap::new();
 
     // Local installed packages
-    local.insert("linux".to_string(), ArchPackageDesc {
-        name: "linux".to_string(),
-        version: "6.11.2-arch1-1".to_string(),
-        desc: "The Linux kernel and modules".to_string(),
-        size: 145_000_000,
-        ..Default::default()
-    });
-    local.insert("glibc".to_string(), ArchPackageDesc {
-        name: "glibc".to_string(),
-        version: "2.40-2".to_string(),
-        desc: "GNU C Library".to_string(),
-        size: 45_000_000,
-        ..Default::default()
-    });
-    local.insert("systemd".to_string(), ArchPackageDesc {
-        name: "systemd".to_string(),
-        version: "256.6-1".to_string(),
-        desc: "System and Service Manager".to_string(),
-        size: 32_000_000,
-        depends: vec![AlpmDependency::parse("glibc>=2.38")],
-        ..Default::default()
-    });
-    local.insert("hyprland".to_string(), ArchPackageDesc {
-        name: "hyprland".to_string(),
-        version: "0.44.1-1".to_string(),
-        desc: "Dynamic tiling Wayland compositor".to_string(),
-        size: 28_000_000,
-        depends: vec![AlpmDependency::parse("glibc")],
-        ..Default::default()
-    });
-    local.insert("neovim".to_string(), ArchPackageDesc {
-        name: "neovim".to_string(),
-        version: "0.10.1-1".to_string(),
-        desc: "Vim-fork focused on extensibility and usability".to_string(),
-        size: 18_000_000,
-        ..Default::default()
-    });
+    local.insert(
+        "linux".to_string(),
+        ArchPackageDesc {
+            name: "linux".to_string(),
+            version: "6.11.2-arch1-1".to_string(),
+            desc: "The Linux kernel and modules".to_string(),
+            size: 145_000_000,
+            ..Default::default()
+        },
+    );
+    local.insert(
+        "glibc".to_string(),
+        ArchPackageDesc {
+            name: "glibc".to_string(),
+            version: "2.40-2".to_string(),
+            desc: "GNU C Library".to_string(),
+            size: 45_000_000,
+            ..Default::default()
+        },
+    );
+    local.insert(
+        "systemd".to_string(),
+        ArchPackageDesc {
+            name: "systemd".to_string(),
+            version: "256.6-1".to_string(),
+            desc: "System and Service Manager".to_string(),
+            size: 32_000_000,
+            depends: vec![AlpmDependency::parse("glibc>=2.38")],
+            ..Default::default()
+        },
+    );
+    local.insert(
+        "hyprland".to_string(),
+        ArchPackageDesc {
+            name: "hyprland".to_string(),
+            version: "0.44.1-1".to_string(),
+            desc: "Dynamic tiling Wayland compositor".to_string(),
+            size: 28_000_000,
+            depends: vec![AlpmDependency::parse("glibc")],
+            ..Default::default()
+        },
+    );
+    local.insert(
+        "neovim".to_string(),
+        ArchPackageDesc {
+            name: "neovim".to_string(),
+            version: "0.10.1-1".to_string(),
+            desc: "Vim-fork focused on extensibility and usability".to_string(),
+            size: 18_000_000,
+            ..Default::default()
+        },
+    );
 
     // Remote sync repository
-    sync.insert("linux".to_string(), ArchPackageDesc {
-        name: "linux".to_string(),
-        version: "6.12.0-arch1-1".to_string(),
-        desc: "The Linux kernel and modules".to_string(),
-        size: 148_000_000,
-        ..Default::default()
-    });
-    sync.insert("glibc".to_string(), ArchPackageDesc {
-        name: "glibc".to_string(),
-        version: "2.40-3".to_string(),
-        desc: "GNU C Library".to_string(),
-        size: 45_000_000,
-        ..Default::default()
-    });
-    sync.insert("systemd".to_string(), ArchPackageDesc {
-        name: "systemd".to_string(),
-        version: "256.7-1".to_string(),
-        desc: "System and Service Manager".to_string(),
-        size: 32_500_000,
-        depends: vec![AlpmDependency::parse("glibc>=2.40")],
-        ..Default::default()
-    });
-    sync.insert("hyprland".to_string(), ArchPackageDesc {
-        name: "hyprland".to_string(),
-        version: "0.45.0-1".to_string(),
-        desc: "Dynamic tiling Wayland compositor".to_string(),
-        size: 29_000_000,
-        depends: vec![AlpmDependency::parse("glibc")],
-        ..Default::default()
-    });
-    sync.insert("neovim".to_string(), ArchPackageDesc {
-        name: "neovim".to_string(),
-        version: "0.10.2-1".to_string(),
-        desc: "Vim-fork focused on extensibility and usability".to_string(),
-        size: 18_200_000,
-        ..Default::default()
-    });
-    sync.insert("waybar".to_string(), ArchPackageDesc {
-        name: "waybar".to_string(),
-        version: "0.11.0-1".to_string(),
-        desc: "Highly customizable Wayland bar".to_string(),
-        size: 4_200_000,
-        depends: vec![AlpmDependency::parse("glibc"), AlpmDependency::parse("hyprland")],
-        ..Default::default()
-    });
-    sync.insert("wallust".to_string(), ArchPackageDesc {
-        name: "wallust".to_string(),
-        version: "2.10.0-1".to_string(),
-        desc: "Dynamic palette harmonizer for Wayland".to_string(),
-        size: 3_800_000,
-        ..Default::default()
-    });
-    sync.insert("sigmaos-core".to_string(), ArchPackageDesc {
-        name: "sigmaos-core".to_string(),
-        version: "1.0.0-1".to_string(),
-        desc: "SigmaOS Sovereign Core Integration Utilities".to_string(),
-        size: 8_500_000,
-        ..Default::default()
-    });
+    sync.insert(
+        "linux".to_string(),
+        ArchPackageDesc {
+            name: "linux".to_string(),
+            version: "6.12.0-arch1-1".to_string(),
+            desc: "The Linux kernel and modules".to_string(),
+            size: 148_000_000,
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "glibc".to_string(),
+        ArchPackageDesc {
+            name: "glibc".to_string(),
+            version: "2.40-3".to_string(),
+            desc: "GNU C Library".to_string(),
+            size: 45_000_000,
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "systemd".to_string(),
+        ArchPackageDesc {
+            name: "systemd".to_string(),
+            version: "256.7-1".to_string(),
+            desc: "System and Service Manager".to_string(),
+            size: 32_500_000,
+            depends: vec![AlpmDependency::parse("glibc>=2.40")],
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "hyprland".to_string(),
+        ArchPackageDesc {
+            name: "hyprland".to_string(),
+            version: "0.45.0-1".to_string(),
+            desc: "Dynamic tiling Wayland compositor".to_string(),
+            size: 29_000_000,
+            depends: vec![AlpmDependency::parse("glibc")],
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "neovim".to_string(),
+        ArchPackageDesc {
+            name: "neovim".to_string(),
+            version: "0.10.2-1".to_string(),
+            desc: "Vim-fork focused on extensibility and usability".to_string(),
+            size: 18_200_000,
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "waybar".to_string(),
+        ArchPackageDesc {
+            name: "waybar".to_string(),
+            version: "0.11.0-1".to_string(),
+            desc: "Highly customizable Wayland bar".to_string(),
+            size: 4_200_000,
+            depends: vec![
+                AlpmDependency::parse("glibc"),
+                AlpmDependency::parse("hyprland"),
+            ],
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "wallust".to_string(),
+        ArchPackageDesc {
+            name: "wallust".to_string(),
+            version: "2.10.0-1".to_string(),
+            desc: "Dynamic palette harmonizer for Wayland".to_string(),
+            size: 3_800_000,
+            ..Default::default()
+        },
+    );
+    sync.insert(
+        "sigmaos-core".to_string(),
+        ArchPackageDesc {
+            name: "sigmaos-core".to_string(),
+            version: "1.0.0-1".to_string(),
+            desc: "SigmaOS Sovereign Core Integration Utilities".to_string(),
+            size: 8_500_000,
+            ..Default::default()
+        },
+    );
 
     (local, sync)
 }
@@ -188,13 +231,19 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             println!("\nPackages ({})", pending.len());
             let mut total_download = 0u64;
             for p in &pending {
-                println!("  {:<16} {:<18} -> {:<18}", p.name, p.old_version, p.new_version);
+                println!(
+                    "  {:<16} {:<18} -> {:<18}",
+                    p.name, p.old_version, p.new_version
+                );
                 if let Some(desc) = sync.get(&p.name) {
                     total_download += desc.size;
                 }
             }
 
-            println!("\nTotal Download Size:    {:.2} MiB", total_download as f64 / (1024.0 * 1024.0));
+            println!(
+                "\nTotal Download Size:    {:.2} MiB",
+                total_download as f64 / (1024.0 * 1024.0)
+            );
             println!("Net Upgrade Size:       +{:.2} MiB", 12.4);
             println!("\n:: Proceed with installation? [Y/n] Y");
             println!(":: Retrieving packages...");
@@ -204,7 +253,10 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             println!("(1/1) checking for file conflicts");
             println!(":: Processing package changes...");
             for p in &pending {
-                println!("upgrading {} ({}) [####################################] 100%", p.name, p.new_version);
+                println!(
+                    "upgrading {} ({}) [####################################] 100%",
+                    p.name, p.new_version
+                );
             }
             println!(":: Running post-transaction hooks...");
             println!("(1/2) Updating systemd-sysusers...");
@@ -222,8 +274,15 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             let mut found = 0;
             for (name, pkg) in &sync {
                 if name.contains(query) || pkg.desc.contains(query) {
-                    let status = if local.contains_key(name) { " [installed]" } else { "" };
-                    println!("\x1b[1mextra/{}\x1b[0m \x1b[1;32m{}\x1b[0m{}\n    {}", pkg.name, pkg.version, status, pkg.desc);
+                    let status = if local.contains_key(name) {
+                        " [installed]"
+                    } else {
+                        ""
+                    };
+                    println!(
+                        "\x1b[1mextra/{}\x1b[0m \x1b[1;32m{}\x1b[0m{}\n    {}",
+                        pkg.name, pkg.version, status, pkg.desc
+                    );
                     found += 1;
                 }
             }
@@ -245,15 +304,33 @@ fn handle_pacman(args: &[String]) -> ExitCode {
                 println!("Version         : {}", pkg.version);
                 println!("Description     : {}", pkg.desc);
                 println!("Architecture    : x86_64");
-                println!("URL             : https://archlinux.org/packages/extra/x86_64/{}", pkg.name);
+                println!(
+                    "URL             : https://archlinux.org/packages/extra/x86_64/{}",
+                    pkg.name
+                );
                 println!("Licenses        : Apache-2.0 / MIT / GPL");
                 println!("Groups          : None");
                 println!("Provides        : None");
-                println!("Depends On      : {}", if pkg.depends.is_empty() { "None".to_string() } else {
-                    pkg.depends.iter().map(|d| d.name.as_str()).collect::<Vec<_>>().join("  ")
-                });
-                println!("Download Size   : {:.2} MiB", pkg.size as f64 / (1024.0 * 1024.0));
-                println!("Installed Size  : {:.2} MiB", (pkg.size as f64 * 3.2) / (1024.0 * 1024.0));
+                println!(
+                    "Depends On      : {}",
+                    if pkg.depends.is_empty() {
+                        "None".to_string()
+                    } else {
+                        pkg.depends
+                            .iter()
+                            .map(|d| d.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join("  ")
+                    }
+                );
+                println!(
+                    "Download Size   : {:.2} MiB",
+                    pkg.size as f64 / (1024.0 * 1024.0)
+                );
+                println!(
+                    "Installed Size  : {:.2} MiB",
+                    (pkg.size as f64 * 3.2) / (1024.0 * 1024.0)
+                );
                 println!("Packager        : SigmaOS Arch Packager <packager@sigmaos.internal>");
                 println!("Build Date      : Sun Nov 15 2026");
                 println!("Validated By    : SHA-256 Sum  PGP Signature");
@@ -292,13 +369,22 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             let sorted = tx.resolve_order();
             println!("\nPackages ({})", sorted.len());
             for name in &sorted {
-                let ver = sync.get(name).map(|x| x.version.as_str()).unwrap_or("latest");
+                let ver = sync
+                    .get(name)
+                    .map(|x| x.version.as_str())
+                    .unwrap_or("latest");
                 println!("  {:<16} {}", name, ver);
             }
             println!("\n:: Proceed with installation? [Y/n] Y");
             for name in &sorted {
-                let ver = sync.get(name).map(|x| x.version.as_str()).unwrap_or("latest");
-                println!("installing {} ({}) [####################################] 100%", name, ver);
+                let ver = sync
+                    .get(name)
+                    .map(|x| x.version.as_str())
+                    .unwrap_or("latest");
+                println!(
+                    "installing {} ({}) [####################################] 100%",
+                    name, ver
+                );
             }
             println!("\x1b[1;32mInstallation completed successfully.\x1b[0m");
             ExitCode::SUCCESS
@@ -312,10 +398,19 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             if let Some(pkg) = local.get(target) {
                 println!("checking dependencies...");
                 println!("\nPackages (1) {}", pkg.name);
-                println!("Total Removed Size: {:.2} MiB", (pkg.size as f64 * 3.2) / (1024.0 * 1024.0));
+                println!(
+                    "Total Removed Size: {:.2} MiB",
+                    (pkg.size as f64 * 3.2) / (1024.0 * 1024.0)
+                );
                 println!("\n:: Do you want to remove these packages? [Y/n] Y");
-                println!("removing {} [####################################] 100%", pkg.name);
-                println!("\x1b[1;32mPackage '{}' removed successfully.\x1b[0m", target);
+                println!(
+                    "removing {} [####################################] 100%",
+                    pkg.name
+                );
+                println!(
+                    "\x1b[1;32mPackage '{}' removed successfully.\x1b[0m",
+                    target
+                );
                 ExitCode::SUCCESS
             } else {
                 println!("error: target not found: {}", target);
@@ -336,7 +431,10 @@ fn handle_pacman(args: &[String]) -> ExitCode {
             let query = &args[1];
             for (name, pkg) in &local {
                 if name.contains(query) || pkg.desc.contains(query) {
-                    println!("\x1b[1mlocal/{}\x1b[0m \x1b[1;32m{}\x1b[0m\n    {}", pkg.name, pkg.version, pkg.desc);
+                    println!(
+                        "\x1b[1mlocal/{}\x1b[0m \x1b[1;32m{}\x1b[0m\n    {}",
+                        pkg.name, pkg.version, pkg.desc
+                    );
                 }
             }
             ExitCode::SUCCESS
@@ -400,7 +498,10 @@ fn handle_checkupdates() -> ExitCode {
     }
 
     for p in pending {
-        println!("{:<18} {:<18} -> {:<18}", p.name, p.old_version, p.new_version);
+        println!(
+            "{:<18} {:<18} -> {:<18}",
+            p.name, p.old_version, p.new_version
+        );
     }
     ExitCode::SUCCESS
 }
@@ -413,11 +514,9 @@ fn handle_paccache(args: &[String]) -> ExitCode {
     while i < args.len() {
         match args[i].as_str() {
             "-r" => dry_run = false,
-            "-k" => {
-                if i + 1 < args.len() {
-                    keep = args[i + 1].parse().unwrap_or(2);
-                    i += 1;
-                }
+            "-k" if i + 1 < args.len() => {
+                keep = args[i + 1].parse().unwrap_or(2);
+                i += 1;
             }
             _ => {}
         }
@@ -448,7 +547,10 @@ fn handle_paccache(args: &[String]) -> ExitCode {
     });
 
     let candidates = cache.scan_candidates_for_removal();
-    println!("==> scanning /var/cache/pacman/pkg for candidates (keeping {} versions)...", keep);
+    println!(
+        "==> scanning /var/cache/pacman/pkg for candidates (keeping {} versions)...",
+        keep
+    );
     if candidates.is_empty() {
         println!("==> no candidate packages found for pruning");
         return ExitCode::SUCCESS;
@@ -461,12 +563,18 @@ fn handle_paccache(args: &[String]) -> ExitCode {
     }
 
     if dry_run {
-        println!("==> finished: {} packages candidate for deletion (dry-run, space to free: {:.2} MiB)",
-            candidates.len(), saved_bytes as f64 / (1024.0 * 1024.0));
+        println!(
+            "==> finished: {} packages candidate for deletion (dry-run, space to free: {:.2} MiB)",
+            candidates.len(),
+            saved_bytes as f64 / (1024.0 * 1024.0)
+        );
         println!("==> pass -r to actually remove them");
     } else {
-        println!("==> removed {} candidate packages (freed {:.2} MiB)",
-            candidates.len(), saved_bytes as f64 / (1024.0 * 1024.0));
+        println!(
+            "==> removed {} candidate packages (freed {:.2} MiB)",
+            candidates.len(),
+            saved_bytes as f64 / (1024.0 * 1024.0)
+        );
     }
 
     ExitCode::SUCCESS
@@ -561,7 +669,10 @@ fn handle_archinstall() -> ExitCode {
     println!("  Target Disk: {}", profile.disk_device);
     println!("  Filesystem : BTRFS (subvolume layout):");
     for sub in &subvolumes {
-        println!("    {:14} -> {:18} (opts: {})", sub.name, sub.mountpoint, sub.mount_options);
+        println!(
+            "    {:14} -> {:18} (opts: {})",
+            sub.name, sub.mountpoint, sub.mount_options
+        );
     }
 
     println!("\n  Generated /etc/fstab entries:");
@@ -597,7 +708,10 @@ fn handle_audit() -> ExitCode {
 
     for f in &findings {
         println!("\n\x1b[1;31m[{:?}] {}\x1b[0m", f.severity, f.advisory_id);
-        println!("  Package  : {} (installed: {}, fix: {:?})", f.package, f.installed_version, f.fixed_version);
+        println!(
+            "  Package  : {} (installed: {}, fix: {:?})",
+            f.package, f.installed_version, f.fixed_version
+        );
         println!("  CVEs     : {}", f.cves.join(", "));
         println!("  Remedy   : run 'sigmaos-arch pacman -Syu' to upgrade");
     }
@@ -615,10 +729,14 @@ fn handle_doctor() -> ExitCode {
         "/etc/pacman.conf",
         "/home/aaryansinghchauhan/.config/sigmaos/pacman.conf",
     ];
-    let conf_found = pacman_conf_candidates.iter().find(|p| Path::new(p).exists());
+    let conf_found = pacman_conf_candidates
+        .iter()
+        .find(|p| Path::new(p).exists());
     match conf_found {
         Some(p) => println!("  [✓] ALPM Pacman Config      : Present ({})", p),
-        None => println!("  [!] ALPM Pacman Config      : Standalone default memory configuration active"),
+        None => println!(
+            "  [!] ALPM Pacman Config      : Standalone default memory configuration active"
+        ),
     }
 
     // 2. Check mirrorlist
@@ -629,7 +747,9 @@ fn handle_doctor() -> ExitCode {
     let mirror_found = mirror_candidates.iter().find(|p| Path::new(p).exists());
     match mirror_found {
         Some(p) => println!("  [✓] Official Mirrorlist     : Present ({})", p),
-        None => println!("  [!] Official Mirrorlist     : Using Tier-1 Geo-distributed HTTPS mirrors"),
+        None => {
+            println!("  [!] Official Mirrorlist     : Using Tier-1 Geo-distributed HTTPS mirrors")
+        }
     }
 
     // 3. Check mkinitcpio hooks
@@ -647,7 +767,10 @@ fn handle_doctor() -> ExitCode {
     // 5. Check Archinstall BTRFS engine
     let profile = ArchinstallProfile::default();
     let subs = profile.standard_btrfs_subvolumes();
-    println!("  [✓] Archinstall Profile     : Generated {} BTRFS subvolumes (@, @home, @snapshots)", subs.len());
+    println!(
+        "  [✓] Archinstall Profile     : Generated {} BTRFS subvolumes (@, @home, @snapshots)",
+        subs.len()
+    );
 
     // 6. Check AUR search bridge
     println!("  [✓] AUR RPC API Bridge      : Ready (https://aur.archlinux.org/rpc/v5)");
