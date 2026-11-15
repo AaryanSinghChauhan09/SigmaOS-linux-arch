@@ -3,7 +3,12 @@ name = "sigmaos_linux_arch"
 version = "0.1.0"
 edition = "2021"
 description = "Arch Linux compatibility layer, pacman bridging, and rolling-release integration"
+default-run = "sigmaos-arch"
 
 [lib]
 name = "sigmaos_linux_arch"
 path = "src/lib.rs"
+
+[[bin]]
+name = "sigmaos-arch"
+path = "src/main.rs"
