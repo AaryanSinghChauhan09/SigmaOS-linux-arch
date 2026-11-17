@@ -3,7 +3,7 @@ name = "SigmaOS-linux-arch"
 tier = 3
 stability = "stable"
 language = "rust"
-description = "Arch Linux compatibility layer, pacman bridging, and rolling-release integration"
+description = "No GitHub description is set; component scope remains unclassified."
 upstream = []
 
 [contract]
